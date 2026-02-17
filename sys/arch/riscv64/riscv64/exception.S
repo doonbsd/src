@@ -247,3 +247,34 @@ ENTRY(syscall_return)
 	csrrw	sp, sscratch, sp
 	sret
 END(syscall_return)
+
+ENTRY(sse_entry)
+	csrrw	sp, sscratch, sp
+	beqz	sp, 1f
+	/* User mode detected */
+	j	sse_handle_user
+1:
+	/* Supervisor mode detected */
+	csrrw	sp, sscratch, sp
+	j	sse_handle_super
+END(sse_entry)
+
+ENTRY(sse_handle_super)
+	save_registers 1
+	mv	a0, sp
+	call	do_handle_sse
+	restore_registers 1
+	sret
+END(sse_handle_super)
+
+ENTRY(sse_handle_user)
+	save_registers 0
+	mv	a0, sp
+	mv	a1, a6
+	mv	a2, a7
+	call	do_handle_sse
+	do_ast
+	restore_registers 0
+	csrrw	sp, sscratch, sp
+	sret
+END(sse_handle_user)

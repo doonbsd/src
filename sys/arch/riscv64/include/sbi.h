@@ -55,6 +55,15 @@
 #define	SBI_ERR_INVALID_PARAM		-3
 #define	SBI_ERR_DENIED			-4
 #define	SBI_ERR_INVALID_ADDRESS		-5
+#define	SBI_ERR_ALREADY_AVAILABLE	-6
+#define	SBI_ERR_ALREADY_STARTED		-7
+#define	SBI_ERR_ALREADY_STOPPED		-8
+#define	SBI_ERR_NO_SHMEM		-9
+#define	SBI_ERR_INVALID_STATE		-10
+#define	SBI_ERR_BAD_RANGE		-11
+#define	SBI_ERR_TIMEOUT			-12
+#define	SBI_ERR_IO			-13
+#define	SBI_ERR_DENIED_LOCKED		-14
 
 /* SBI Base Extension */
 #define	SBI_EXT_ID_BASE			0x10
@@ -93,6 +102,16 @@
 #define	SBI_REMOTE_SFENCE_VMA		6
 #define	SBI_REMOTE_SFENCE_VMA_ASID	7
 #define	SBI_SHUTDOWN			8
+
+/* Supervisor Software Events */
+#define	SBI_EXT_ID_SSE			0x535345
+#define	 SBI_SSE_LOCAL_RAS_HI		0x0UL
+#define	 SBI_SSE_LOCAL_DBL_TRAP		0x1UL
+#define	 SBI_SSE_GLOBAL_RAS_HI		0x8000UL
+#define	 SBI_SSE_LOCAL_PMU_OVFLOW	0x10000UL
+#define	 SBI_SSE_LOCAL_RAS_LO		0x100000UL
+#define	 SBI_SSE_GLOBAL_RAS_LO		0x108000UL
+#define	 SBI_SSE_LOCAL_SW_INJECTED	0xffff0000UL
 
 #define	SBI_CALL0(e, f)			SBI_CALL4(e, f, 0, 0, 0, 0)
 #define	SBI_CALL1(e, f, p1)		SBI_CALL4(e, f, p1, 0, 0, 0)

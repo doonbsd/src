@@ -31,6 +31,7 @@
 #include <machine/elf.h>
 #include <machine/fdt.h>
 #include <machine/sbi.h>
+#include <machine/sse.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_clock.h>
@@ -471,6 +472,8 @@ cpu_start_secondary(void)
 
 	spllower(IPL_NONE);
 	intr_enable();
+
+	sse_init();
 
 	sched_toidle();
 }

@@ -26,7 +26,8 @@
 
 /*  CTL_MACHDEP definitions. */
 #define	CPU_COMPATIBLE		1	/* compatible property */
-#define	CPU_MAXID		2	/* number of valid machdep ids */
+#define	CPU_SSE_TEST		2	/* RISC-V SBI SSE Test */
+#define	CPU_MAXID		3	/* number of valid machdep ids */
 
 #define	CTL_MACHDEP_NAMES { \
 	{ 0, 0 }, \

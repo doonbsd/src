@@ -45,6 +45,7 @@
 #include <machine/bus.h>
 #include <machine/sbi.h>
 #include <machine/sysarch.h>
+#include <machine/sse.h>
 
 #include <machine/db_machdep.h>
 #include <ddb/db_extern.h>
@@ -276,6 +277,9 @@ cpu_startup(void)
 		printf("kernel does not support -c; continuing..\n");
 #endif
 	}
+
+	/* Supervisor Software Events */
+	sse_init();
 }
 
 /*
@@ -329,6 +333,11 @@ cpu_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
 		error = sysctl_rdstring(oldp, oldlenp, newp, compatible);
 		free(compatible, M_TEMP, len);
 		return error;
+	case CPU_SSE_TEST:
+		printf("Doing RISC-V SBI SSE Test...\n");
+		extern void do_sse_test(void);
+		do_sse_test();
+		return 0;
 	default:
 		return (EOPNOTSUPP);
 	}
