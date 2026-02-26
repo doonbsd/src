@@ -1,6 +1,6 @@
 /*	$OpenBSD: $ */
 /*
- * Copyright (c) 2026 Himanshu Chauhan <himanshu@thechauhan.dev>
+ * Copyright (c) 2026 Doongar Singh <doonbsd@gmail.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -30,20 +30,15 @@
 #include <dev/cons.h>
 
 static unsigned long supp_local_events[] = {
-	SBI_SSE_LOCAL_RAS_HI,
-	SBI_SSE_LOCAL_DBL_TRAP,
-	SBI_SSE_LOCAL_PMU_OVFLOW,
-	SBI_SSE_LOCAL_RAS_LO,
-	SBI_SSE_LOCAL_SW_INJECTED
+	SBI_SSE_LOCAL_SW_INJECTED,
 };
 
 static unsigned long supp_global_events[] = {
-	SBI_SSE_GLOBAL_RAS_HI,
-	SBI_SSE_GLOBAL_RAS_LO
+	SBI_SSE_GLOBAL_SW_INJECTED,
 };
 
-#define	NR_LOCAL_EVENTS		5
-#define	NR_GLOBAL_EVENTS	2
+#define	NR_LOCAL_EVENTS		1
+#define	NR_GLOBAL_EVENTS	1
 
 enum sse_event_state {
 	SSE_EVENT_UNUSED,	/* Event is unused */
@@ -67,6 +62,8 @@ struct sse_event {
 
 TAILQ_HEAD(, sse_event) sse_local_evt_list;
 TAILQ_HEAD(, sse_event) sse_global_evt_list;
+
+extern void sse_entry(unsigned long, unsigned long);
 
 static void free_global_evt_buffers(void)
 {
@@ -102,6 +99,15 @@ static vaddr_t allocate_evt_buffer(paddr_t *pa)
 	return evt_va;
 }
 
+static int sbi_sse_register(uint32_t event_id, unsigned long pc, unsigned long arg)
+{
+	struct sbi_ret ret;
+
+	ret = SBI_CALL3(SBI_EXT_ID_SSE, SBI_SSE_REGISTER_EVENT, event_id, pc, arg);
+
+	return (ret.error != 0 ? (int)ret.error : 0);
+}
+
 static int sse_init_global_events(void)
 {
 	int i;
@@ -116,6 +122,14 @@ static int sse_init_global_events(void)
 			goto err_out;
 		}
 
+		err = sbi_sse_register(supp_global_events[i],
+		    (unsigned long)sse_entry, evt_va);
+
+		if (err != 0) {
+			printf("Unable to register event 0x%lx\n", supp_global_events[i]);
+			return err;
+		}
+
 		evt = (struct sse_event *)evt_va;
 		evt->va = evt_va;
 		evt->pa = evt_pa;
@@ -125,6 +139,7 @@ static int sse_init_global_events(void)
 		evt->cb = NULL;
 		evt->context = NULL;
 		TAILQ_INSERT_HEAD(&sse_global_evt_list, evt, lentry);
+		printf("SSE: Registered event 0x%lx\n", evt->evt_id);
 	}
 
 	return 0;
@@ -149,6 +164,14 @@ static int sse_init_local_events(void)
 			goto err_out;
 		}
 
+		err = sbi_sse_register(supp_local_events[i],
+		    (unsigned long)sse_entry, evt_va);
+
+		if (err != 0) {
+			printf("Unable to register event 0x%lx\n", supp_local_events[i]);
+			return err;
+		}
+
 		evt = (struct sse_event *)evt_va;
 		evt->va = evt_va;
 		evt->pa = evt_pa;
@@ -158,6 +181,7 @@ static int sse_init_local_events(void)
 		evt->cb = NULL;
 		evt->context = NULL;
 		TAILQ_INSERT_HEAD(&sse_local_evt_list, evt, lentry);
+		printf("SSE: Registered event 0x%lx\n", evt->evt_id);
 	}
 
 	return 0;
@@ -192,23 +216,33 @@ do_handle_sse(struct trapframe *frame, uint32_t hart_id, void *entry_arg)
 int sse_init(void)
 {
 	struct cpu_info *ci = curcpu();
+	int rc;
 
 	if (sbi_probe_extension(SBI_EXT_ID_SSE) == 0) {
-		printf("SBI: SSE Extension not detected\n");
+		printf("SSE: Extension not detected\n");
 		return -1;
 	}
 
 	if (!CPU_IS_PRIMARY(ci)) {
-		printf("SSE: Initializing local events\n");
-		sse_init_local_events();
+		if ((rc = sse_init_local_events()) != 0) {
+			printf("SSE: Failed to initialize local event on hart %llu\n",
+			    ci->ci_hartid);
+			return rc;
+		}
 		return 0;
 	}
 
-	printf("SSE: Boot CPU initializing global events\n");
+	if ((rc = sse_init_global_events()) != 0) {
+		printf("SSE: Failed to initialize global events for boot CPU\n");
+		return rc;
+	}
 
-	sse_init_global_events();
+	if ((rc = sse_init_local_events()) != 0) {
+		printf("SSE: Failed to initialize local events for boot CPU\n");
+		return rc;
+	}
 
-	printf("SBI: SSE Extension initialized\n");
+	printf("SSE: Initialized successfully\n");
 
 	return 0;
 }
